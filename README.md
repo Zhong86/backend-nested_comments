@@ -118,21 +118,21 @@ Start with `top` = `upvotes - downvotes DESC`. Add time-decay once basics work.
 - [ x ] Add indexes on `comments.post_id` and `comments.parent_id`
 
 ## Phase 2: Basic Comment Creation
-- [ ] `POST /posts/:postId/comments` — create top-level comment
-- [ ] `POST /comments/:commentId/replies` — create reply
-- [ ] Validate `parent_id` belongs to the same `post_id`
-- [ ] Handle basic errors (missing post, missing parent, empty body)
+- [ x ] `POST /posts/:postId/comments` — create top-level comment
+- [ x ] `POST /posts/:postId/comments/:commentId/replies` — create reply
+- [ x ] Validate `parent_id` belongs to the same `post_id`
+- [ x ] Handle basic errors (missing post, missing parent, empty body)
 
 ## Phase 3: Fetching Root Comments
-- [ ] `GET /posts/:postId/comments` — fetch top-level comments only (`parent_id IS NULL`)
-- [ ] Add `limit` / `offset` query params
-- [ ] Add `reply_count` per comment (count query)
-- [ ] Add small preview of top 2-3 replies per comment
+- [ x ] `GET /posts/:postId/comments` — fetch top-level comments only (`parent_id IS NULL`)
+- [ x ] Add `limit` / `offset` query params
+- [ x ] Add `reply_count` per comment (count query)
+- [ x ] Add small preview of top 2-3 replies per comment
 
 ## Phase 4: Fetching Replies (Expand Thread)
-- [ ] `GET /comments/:commentId/replies` — fetch children of a comment
-- [ ] Add `limit` / `offset` pagination
-- [ ] Add `reply_count` for each nested reply too (lazy, one level at a time)
+- [ x ] `GET /comments/:commentId/replies` — fetch children of a comment
+- [ x ] Add `limit` / `offset` pagination
+- [ x ] Add `reply_count` for each nested reply too (1 preview reply)
 
 ## Phase 5: Sorting
 - [ ] Implement `sort=new` (`ORDER BY created_at DESC`)
@@ -172,3 +172,6 @@ Start with `top` = `upvotes - downvotes DESC`. Add time-decay once basics work.
 - [ ] Switch offset pagination to cursor-based pagination
 - [ ] (Optional/advanced) Build a closure table for complex ancestor/descendant queries
 - [ ] Load-test with a large synthetic comment tree (10k+ comments) and check query performance
+
+## Notes
+
