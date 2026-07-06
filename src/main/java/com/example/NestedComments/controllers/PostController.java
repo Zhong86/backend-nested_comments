@@ -1,14 +1,11 @@
 package com.example.NestedComments.controllers;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,22 +39,34 @@ public class PostController {
   }
 
   @GetMapping("/{postId}/comments")
-  public Page<CommentResponse> getTopComments(
+  public List<CommentResponse> getTopComments(
     @PathVariable UUID postId, 
     @RequestParam(defaultValue = "top") String sort, 
+    @RequestParam(required = false) UUID cursorId,
     @RequestParam(defaultValue = "20") int limit, 
-    @RequestParam(defaultValue = "0") int offset
+    @RequestParam(required = false) Integer cursorScore, 
+    @RequestParam(required = false) String cursorDate
   ) {
-    Sort sortOrder = switch (sort) {
-      case "new" -> Sort.by(Sort.Direction.DESC, "createdAt");
-      case "top" -> Sort.by(Sort.Direction.DESC, "score");
+    boolean isNew = switch (sort) {
+      case "new" -> true;
+      case "top" -> false;
       default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sort type invalid!");
     };
 
-    Pageable pageable = PageRequest.of(offset / limit, limit, sortOrder);
+    List<Comment> roots;
+if (cursorId == null) {
+      roots = isNew
+      ? commentRepository.findFirstPageRootCommentsByDate(postId, limit)
+      : commentRepository.findFirstPageRootCommentsByScore(postId, limit);
+    } else if (isNew) {
+      OffsetDateTime cursorTime = OffsetDateTime.parse(cursorDate);
+      roots = commentRepository.findRootCommentsAfterCursorByDate(postId, cursorTime, cursorId, limit);
+    } else {
+      roots = commentRepository.findRootCommentsAfterCursorByScore(postId, cursorScore, cursorId, limit);
+    }
 
-    Page<Comment> roots =  commentRepository.findByPostIdAndParentIdIsNull(postId, pageable);
-    List<UUID> rootIds = roots.getContent().stream().map(Comment::getId).toList();
+
+    List<UUID> rootIds = roots.stream().map(Comment::getId).toList();
 
     Map<UUID, Long> replyCounts = commentRepository
       .countRepliesByParentIds(rootIds).stream()
@@ -68,12 +77,12 @@ public class PostController {
       .collect(Collectors.groupingBy(Comment::getParentId));
 
 
-    return roots.map(comment -> {
+    return roots.stream()
+      .map(comment -> {
       long replyCount = replyCounts.getOrDefault(comment.getId(), 0L);
       List<Comment> preview = previewsByParent.getOrDefault(comment.getId(), List.of());
-
       return CommentResponse.from(comment, replyCount, preview);
-    });
+    }).toList();
   }
 
   @PostMapping("/{postId}/comments")

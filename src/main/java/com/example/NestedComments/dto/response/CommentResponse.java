@@ -1,5 +1,6 @@
 package com.example.NestedComments.dto.response;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,21 +19,24 @@ public class CommentResponse {
   private String body; 
   private Integer score; 
   private Integer depth; 
+  private OffsetDateTime createdAt;
   private long replyCount; 
   private List<Comment> previewReplies;
   public CommentResponse() {
   } 
 
   public static CommentResponse from(Comment comment, long replyCount, List<Comment> previewReplies) {
+    String displayBody = comment.isDeleted() ? "[deleted]" : comment.getBody();
     return new CommentResponse(
-      comment.getId(), 
-      comment.getPostId(), 
-      comment.getParentId(), 
-      comment.getAuthorId(), 
-      comment.getBody(), 
-      comment.getScore(), 
-      comment.getDepth(), 
-      replyCount, 
+      comment.getId(),
+      comment.getPostId(),
+      comment.getParentId(),
+      comment.getAuthorId(),
+      displayBody,
+      comment.getScore(),
+      comment.getDepth(),
+      comment.getCreatedAt(),
+      replyCount,
       previewReplies
     );
   }

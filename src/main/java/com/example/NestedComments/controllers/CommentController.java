@@ -1,5 +1,6 @@
 package com.example.NestedComments.controllers;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,44 +47,52 @@ public class CommentController {
   } 
 
   @GetMapping("/{commentId}/replies")
-  public Page<CommentResponse> getReplies(
+  public List<CommentResponse> getReplies(
     @PathVariable UUID commentId,
     @RequestParam(defaultValue = "top") String sort,
-    @RequestParam(defaultValue = "20") int limit, 
-    @RequestParam(defaultValue = "0") int offset
+    @RequestParam(required = false) UUID cursorId,
+    @RequestParam(required = false) Integer cursorScore,
+    @RequestParam(required = false) String cursorDate, 
+    @RequestParam(defaultValue = "20") int limit
   ) {
     commentRepository.findById(commentId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
 
-    Sort sortOrder = switch (sort) {
-      case "new" -> Sort.by(Sort.Direction.DESC, "createdAt");
-      case "top" -> Sort.by(Sort.Direction.DESC, "score");
+    boolean isNew = switch (sort) {
+      case "new" -> true;
+      case "top" -> false;
       default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sort option invalid!");
     };
-    Pageable pageable = PageRequest.of(offset / limit, limit, sortOrder);
 
-    Page<Comment> roots = commentRepository.findByParentId(commentId, pageable);
-    List<UUID> rootIds = roots.getContent().stream().map(Comment::getId).toList();
+    List<Comment> replies;
+    if (cursorId == null) {
+      replies = isNew
+      ? commentRepository.findFirstPageRepliesByDate(commentId, limit)
+      : commentRepository.findFirstPageRepliesByScore(commentId, limit);
+    } else if (isNew) {
+      OffsetDateTime cursorTime = OffsetDateTime.parse(cursorDate);
+      replies = commentRepository.findRepliesAfterCursorByDate(commentId, cursorTime, cursorId, limit);
+    } else {
+      replies = commentRepository.findRepliesAfterCursorByScore(commentId, cursorScore, cursorId, limit);
+    }
+
+    List<UUID> replyIds = replies.stream().map(Comment::getId).toList();
 
     Map<UUID, Long> replyCounts = commentRepository
-      .countRepliesByParentIds(rootIds).stream()
-      .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
+    .countRepliesByParentIds(replyIds).stream()
+    .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
 
-    // Get 1 preview reply
     Map<UUID, List<Comment>> previewsByParent = commentRepository
-      .findTopRepliesForParents(rootIds, 1).stream()
-      .collect(Collectors.groupingBy(Comment::getParentId));
+    .findTopRepliesForParents(replyIds, 1).stream()
+    .collect(Collectors.groupingBy(Comment::getParentId));
 
-    return roots.map(comment -> {
+    return replies.stream()
+    .map(comment -> {
       long replyCount = replyCounts.getOrDefault(comment.getId(), 0L);
       List<Comment> preview = previewsByParent.getOrDefault(comment.getId(), List.of());
-
-      if(comment.isDeleted()) {
-        comment.setBody("[deleted]");
-      }
-
       return CommentResponse.from(comment, replyCount, preview);
-    });
+    })
+    .toList();
   }
 
   @PostMapping("/{commentId}/vote")
@@ -93,14 +102,14 @@ public class CommentController {
     @RequestBody VoteRequest request
   ) {
     if (!rateLimiter.allow(request.getUserId().toString())) {
-        throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Slow down — too many comments, try again shortly");
+      throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Slow down — too many comments, try again shortly");
     }
     if(request.getValue() != 1 && request.getValue() != -1) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vote value must be 1 or -1");
     }
 
     Comment comment = commentRepository.findById(commentId)
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
+    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
     if(comment.isDeleted()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment deleted, cannot vote!");
     }
@@ -117,10 +126,10 @@ public class CommentController {
       }
     } else {
       Vote newVote = Vote.builder()
-        .commentId(commentId)
-        .userId(request.getUserId())
-        .value(request.getValue())
-        .build();
+      .commentId(commentId)
+      .userId(request.getUserId())
+      .value(request.getValue())
+      .build();
       voteRepository.save(newVote);
     }
     int newScore = voteRepository.sumVotesForComment(commentId);
@@ -131,7 +140,7 @@ public class CommentController {
   @DeleteMapping("/{commentId}")
   public ResponseEntity<Void> deleteComment(@PathVariable UUID commentId) {
     Comment comment = commentRepository.findById(commentId)
-      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
+    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
     comment.setDeleted(true);
     commentRepository.save(comment);
     return ResponseEntity.noContent().build();
