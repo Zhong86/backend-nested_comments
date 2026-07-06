@@ -46,21 +46,10 @@ Build a backend that supports threaded/nested comments on posts, similar to Redd
 - [ x ] Prevent voting/replying rules update if needed (optional)
 
 ## Phase 8: Depth & Safety Rules
-- [ ] Add max nesting depth (e.g. 10 levels) — reject replies beyond that
-- [ ] Add basic rate limiting on comment creation (optional but realistic)
-
-## Phase 9: Testing the Full Flow
-- [ ] Seed a post with a large nested comment tree (script or manual)
-- [ ] Test root fetch + pagination
-- [ ] Test reply expansion at multiple depths
-- [ ] Test sorting changes results correctly
-- [ ] Test voting updates score and re-sorts correctly
-
----
+- [ x ] Add max nesting depth (e.g. 10 levels) — reject replies beyond that
+- [ x ] Add basic rate limiting on comment creation (optional but realistic)
 
 ## Stretch Goals (final stage)
-- [ ] Implement `sort=hot` with time-decay scoring formula
-- [ ] Implement `sort=controversial` (high votes, near 50/50 split)
 - [ ] Add recursive CTE endpoint for fetching a full subtree in one query
 - [ ] Implement materialized path (`path = "1/5/23"`) for efficient subtree lookups
 - [ ] Switch offset pagination to cursor-based pagination

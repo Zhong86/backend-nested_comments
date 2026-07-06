@@ -3,7 +3,6 @@ package com.example.NestedComments.controllers;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Pageable;
@@ -25,6 +24,7 @@ import com.example.NestedComments.dto.response.CommentResponse;
 import com.example.NestedComments.models.Comment;
 import com.example.NestedComments.repositories.CommentRepository;
 import com.example.NestedComments.repositories.PostRepository;
+import com.example.NestedComments.util.RateLimiter;
 
 @RestController
 @RequestMapping("/api/post")
@@ -33,10 +33,12 @@ public class PostController {
   private static final int MAX_DEPTH = 10; 
   private final CommentRepository commentRepository;
   private final PostRepository postRepository;
+  private final RateLimiter rateLimiter;
   
-  public PostController(CommentRepository commentRepository, PostRepository postRepository) {
+  public PostController(CommentRepository commentRepository, PostRepository postRepository, RateLimiter rateLimiter) {
     this.commentRepository = commentRepository;
     this.postRepository = postRepository;
+    this.rateLimiter = rateLimiter;
   }
 
   @GetMapping("/{postId}/comments")
@@ -79,6 +81,10 @@ public class PostController {
     @PathVariable UUID postId, 
     @RequestBody CreateCommentRequest request
   ) {
+    if (!rateLimiter.allow(request.getAuthorId().toString())) {
+        throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Slow down — too many comments, try again shortly");
+    }
+
     validateBody(request.getBody());
 
     postRepository.findById(postId)

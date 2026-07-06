@@ -6,8 +6,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import javax.swing.text.html.Option;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +27,7 @@ import com.example.NestedComments.dto.response.CommentResponse;
 import com.example.NestedComments.models.Comment;
 import com.example.NestedComments.models.Vote;
 import com.example.NestedComments.repositories.CommentRepository;
+import com.example.NestedComments.util.RateLimiter;
 
 import jakarta.transaction.Transactional;
 
@@ -38,10 +37,12 @@ public class CommentController {
 
   private final CommentRepository commentRepository;
   private final VoteRepository voteRepository;
+  private final RateLimiter rateLimiter;
 
-  public CommentController(CommentRepository commentRepository, VoteRepository voteRepository) {
+  public CommentController(CommentRepository commentRepository, VoteRepository voteRepository, RateLimiter rateLimiter) {
     this.commentRepository = commentRepository;
     this.voteRepository = voteRepository;
+    this.rateLimiter = rateLimiter;
   } 
 
   @GetMapping("/{commentId}/replies")
@@ -91,6 +92,9 @@ public class CommentController {
     @PathVariable UUID commentId,
     @RequestBody VoteRequest request
   ) {
+    if (!rateLimiter.allow(request.getUserId().toString())) {
+        throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Slow down — too many comments, try again shortly");
+    }
     if(request.getValue() != 1 && request.getValue() != -1) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vote value must be 1 or -1");
     }
