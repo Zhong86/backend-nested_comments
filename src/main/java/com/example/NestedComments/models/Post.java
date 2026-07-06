@@ -33,10 +33,10 @@ public class Post {
   private UUID authorId; 
 
   @Column(columnDefinition = "TEXT", nullable = false)
-  private UUID title; 
+  private String title; 
 
   @Column(columnDefinition = "TEXT")
-  private UUID body;
+  private String body;
 
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;

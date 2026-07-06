@@ -17,14 +17,14 @@ public interface CommentRepository extends JpaRepository<Comment, UUID>{
   Page<Comment> findByPostIdAndParentIdIsNull(UUID postId, Pageable pageable);
   Page<Comment> findByParentId(UUID parentId, Pageable pageable);
 
-  @Query("SELECT c.parentId, COUNT(c) FROM Comment c WHERE c.parentId IN :parentIds GROUP BY c.parentId")
+  @Query("SELECT c.parentId, COUNT(c) FROM Comment c WHERE c.parentId IN (:parentIds) GROUP BY c.parentId")
   List<Object[]> countRepliesByParentIds(@Param("parentIds") List<UUID> parentIds);
 
   @Query(value = """
     SELECT * FROM (
       SELECT *, ROW_NUMBER() OVER (PARTITION BY parent_id ORDER BY score DESC) as rn
       FROM comments
-      WHERE parent_id IN :parentIds
+      WHERE parent_id IN (:parentIds)
     )
     WHERE rn <= :num
   """, nativeQuery = true)

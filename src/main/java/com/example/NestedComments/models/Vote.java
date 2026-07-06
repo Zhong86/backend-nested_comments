@@ -30,7 +30,7 @@ public class Vote {
   private UUID id; 
   @Column(name = "comment_id", nullable = false)
   private UUID commentId; 
-  @Column(name = "parent_id", nullable = false)
+  @Column(name = "user_id", nullable = false)
   private UUID userId; 
   @Column(nullable = false, columnDefinition = "SMALLINT")
   private Short value;

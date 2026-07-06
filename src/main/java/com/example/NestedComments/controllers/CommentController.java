@@ -2,8 +2,11 @@ package com.example.NestedComments.controllers;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import javax.swing.text.html.Option;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -12,25 +15,31 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.example.NestedComments.dto.request.VoteRequest;
 import com.example.NestedComments.dto.response.CommentResponse;
 import com.example.NestedComments.models.Comment;
+import com.example.NestedComments.models.Vote;
 import com.example.NestedComments.repositories.CommentRepository;
 
-import lombok.Getter;
+import jakarta.transaction.Transactional;
 
 @RestController
-@RequestMapping("/comments")
+@RequestMapping("/api/comments")
 public class CommentController {
 
   private final CommentRepository commentRepository;
+  private final VoteRepository voteRepository;
 
-  public CommentController(CommentRepository commentRepository) {
+  public CommentController(CommentRepository commentRepository, VoteRepository voteRepository) {
     this.commentRepository = commentRepository;
+    this.voteRepository = voteRepository;
   } 
 
   @GetMapping("/{commentId}/replies")
@@ -65,5 +74,40 @@ public class CommentController {
       List<Comment> preview = previewsByParent.getOrDefault(comment.getId(), List.of());
       return CommentResponse.from(comment, replyCount, preview);
     });
+  }
+
+  @PostMapping("/{commentId}/vote")
+  @Transactional
+  public Comment voteComment(
+    @PathVariable UUID commentId,
+    @RequestBody VoteRequest request
+  ) {
+    if(request.getValue() != 1 && request.getValue() != -1) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vote value must be 1 or -1");
+    }
+
+    Comment comment = commentRepository.findById(commentId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
+    Optional<Vote> existingVote = voteRepository.findByCommentIdAndUserId(commentId, request.getUserId());
+
+    if (existingVote.isPresent()) {
+      Vote vote = existingVote.get(); 
+      if (vote.getValue().equals(request.getValue())) {
+        voteRepository.delete(vote);
+      } else {
+        vote.setValue(request.getValue());
+        voteRepository.save(vote);
+      }
+    } else {
+      Vote newVote = Vote.builder()
+        .commentId(commentId)
+        .userId(request.getUserId())
+        .value(request.getValue())
+        .build();
+      voteRepository.save(newVote);
+    }
+    int newScore = voteRepository.sumVotesForComment(commentId);
+    comment.setScore(newScore);
+    return commentRepository.save(comment);
   }
 }

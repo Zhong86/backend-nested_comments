@@ -34,9 +34,9 @@ public class PostController {
   private final CommentRepository commentRepository;
   private final PostRepository postRepository;
   
-  public PostController(CommentRepository commentRepository) {
+  public PostController(CommentRepository commentRepository, PostRepository postRepository) {
     this.commentRepository = commentRepository;
-    this.postRepository = null;
+    this.postRepository = postRepository;
   }
 
   @GetMapping("/{postId}/comments")
@@ -83,6 +83,7 @@ public class PostController {
 
     postRepository.findById(postId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found!"));
+    System.out.println("findById succeeded");
 
     Comment newComment = Comment.builder()
       .postId(postId)
