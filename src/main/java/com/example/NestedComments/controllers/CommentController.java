@@ -13,6 +13,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,12 +51,14 @@ public class CommentController {
     @RequestParam(defaultValue = "20") int limit, 
     @RequestParam(defaultValue = "0") int offset
   ) {
+    commentRepository.findById(commentId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
+
     Sort sortOrder = switch (sort) {
       case "new" -> Sort.by(Sort.Direction.DESC, "createdAt");
       case "top" -> Sort.by(Sort.Direction.DESC, "score");
       default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sort option invalid!");
     };
-
     Pageable pageable = PageRequest.of(offset / limit, limit, sortOrder);
 
     Page<Comment> roots = commentRepository.findByParentId(commentId, pageable);
@@ -72,6 +76,11 @@ public class CommentController {
     return roots.map(comment -> {
       long replyCount = replyCounts.getOrDefault(comment.getId(), 0L);
       List<Comment> preview = previewsByParent.getOrDefault(comment.getId(), List.of());
+
+      if(comment.isDeleted()) {
+        comment.setBody("[deleted]");
+      }
+
       return CommentResponse.from(comment, replyCount, preview);
     });
   }
@@ -88,6 +97,10 @@ public class CommentController {
 
     Comment comment = commentRepository.findById(commentId)
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
+    if(comment.isDeleted()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment deleted, cannot vote!");
+    }
+
     Optional<Vote> existingVote = voteRepository.findByCommentIdAndUserId(commentId, request.getUserId());
 
     if (existingVote.isPresent()) {
@@ -109,5 +122,14 @@ public class CommentController {
     int newScore = voteRepository.sumVotesForComment(commentId);
     comment.setScore(newScore);
     return commentRepository.save(comment);
+  }
+
+  @DeleteMapping("/{commentId}")
+  public ResponseEntity<Void> deleteComment(@PathVariable UUID commentId) {
+    Comment comment = commentRepository.findById(commentId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found!"));
+    comment.setDeleted(true);
+    commentRepository.save(comment);
+    return ResponseEntity.noContent().build();
   }
 }

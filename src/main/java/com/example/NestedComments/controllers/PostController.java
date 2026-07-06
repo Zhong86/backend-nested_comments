@@ -105,10 +105,13 @@ public class PostController {
 
     Comment parent = commentRepository.findById(commentId) 
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent comment not found"));
+    if(parent.isDeleted()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comment deleted, cannot reply!");
+    }
 
     if (!parent.getPostId().equals(postId)) {
       throw new ResponseStatusException(
-        HttpStatus.BAD_REQUEST, "Parent comment does not match post!"
+        HttpStatus.NOT_FOUND, "Parent comment does not match post!"
       );
     }
 

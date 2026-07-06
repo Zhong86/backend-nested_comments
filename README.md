@@ -41,9 +41,9 @@ Build a backend that supports threaded/nested comments on posts, similar to Redd
 - [ x ] Recompute and store `score` on the comment (upvotes - downvotes)
 
 ## Phase 7: Soft Delete
-- [ ] `DELETE /comments/:commentId` — mark `deleted = TRUE` instead of removing row
-- [ ] When fetching, replace deleted comment body with `[deleted]` but still show its replies
-- [ ] Prevent voting/replying rules update if needed (optional)
+- [ x ] `DELETE /comments/:commentId` — mark `deleted = TRUE` instead of removing row
+- [ x ] When fetching, replace deleted comment body with `[deleted]` but still show its replies
+- [ x ] Prevent voting/replying rules update if needed (optional)
 
 ## Phase 8: Depth & Safety Rules
 - [ ] Add max nesting depth (e.g. 10 levels) — reject replies beyond that
